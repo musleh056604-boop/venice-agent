@@ -38,6 +38,7 @@ class MainActivity : AppCompatActivity() {
             bar.addView(Button(this).apply { text = pair.first; setOnClickListener { pair.second() } })
         }
         bar.addView(Button(this).apply { text = "اختبار الصوت"; setOnClickListener { Speech.speak(this@MainActivity, "مرحباً، أنا فينيس") } })
+        bar.addView(Button(this).apply { text = "الفقاعة"; setOnClickListener { toggleBubble() } })
         val emergency = Button(this).apply { text = "إيقاف طوارئ"; setTextColor(Color.WHITE); setBackgroundColor(Color.rgb(170, 30, 30)); setOnClickListener { emergencyStop() } }
         bar.addView(emergency)
         root.addView(bar)
@@ -61,6 +62,14 @@ class MainActivity : AppCompatActivity() {
         if (prefs.apiKey.isBlank()) { log("أدخل مفتاح Gemini من الإعدادات"); return }
         busy = true; input.setText(""); log("👤 $goal")
         activeJob = scope.launch { try { val answer = agentLoop(goal); log("🤖 $answer"); if (prefs.autoSpeak && !EmergencyStop.active) Speech.speak(this@MainActivity, answer) } catch (e: Exception) { log("خطأ: ${e.message ?: "غير معروف"}") } finally { busy = false; activeJob = null } }
+    }
+    private fun toggleBubble() {
+        if (!Settings.canDrawOverlays(this)) {
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+            return
+        }
+        startService(Intent(this, BubbleService::class.java))
+        log("تم تشغيل الفقاعة")
     }
     private fun emergencyStop() {
         activeJob?.cancel(); activeJob = null; busy = false; EmergencyStop.stop(this); log("تم إيقاف الوكيل والطابور والصوت")
