@@ -54,7 +54,7 @@ class MainActivity : AppCompatActivity() {
     private fun runGoal(goal: String) {
         val clean = goal.trim(); if (clean.isEmpty() || busy) return
         if (AgentAccessibilityService.instance == null) { log("فعّل خدمة إمكانية الوصول أولاً"); permissions(); return }
-        val sensitive = Regex("أرسل|احذف|اتصل|رسالة|مكالمة|دفع|شراء|كلمة مرور").containsMatchIn(clean)
+        val sensitive = Regex("أرسل|احذف|اتصل|رسالة|مكالمة|دفع|شراء|كلمة مرور|sms|رقم الهاتف|هاتف|اتصال", RegexOption.IGNORE_CASE).containsMatchIn(clean)
         if (sensitive) AlertDialog.Builder(this).setTitle("تأكيد عملية حساسة").setMessage(clean).setPositiveButton("تنفيذ") { _, _ -> executeGoal(clean) }.setNegativeButton("إلغاء", null).show() else executeGoal(clean)
     }
     private fun executeGoal(goal: String) {

@@ -21,6 +21,8 @@ class AgentTools(private val ctx: Context) {
         put(fn("speak", "انطق نصًا", JSONObject().put("text", prop("string", "النص")), "text"))
         put(fn("save_skill", "احفظ خطوات المهمة", JSONObject().put("name", prop("string", "الاسم")).put("steps", prop("string", "JSON للخطوات")), "name", "steps"))
         put(fn("run_skill", "شغّل مهارة محفوظة", JSONObject().put("name", prop("string", "الاسم")), "name"))
+        put(fn("call_phone", "افتح شاشة الاتصال بالرقم دون إجراء الاتصال تلقائياً. يتطلب تأكيد المستخدم.", JSONObject().put("number", prop("string", "رقم الهاتف بصيغة دولية أو محلية")), "number"))
+        put(fn("compose_sms", "افتح رسالة SMS جاهزة بالرقم والنص دون إرسال تلقائي. يتطلب تأكيد المستخدم.", JSONObject().put("number", prop("string", "رقم الهاتف" )).put("text", prop("string", "نص الرسالة")), "number", "text"))
     }
     private fun fn(name: String, desc: String, props: JSONObject, vararg required: String) = JSONObject().put("name", name).put("description", desc).put("parameters", JSONObject().put("type", "OBJECT").put("properties", props).put("required", JSONArray(required)))
 
@@ -35,9 +37,29 @@ class AgentTools(private val ctx: Context) {
         "speak" -> { Speech.speak(ctx, args.optString("text")); "تم النطق" }
         "save_skill" -> { memory.save(args.optString("name"), JSONArray(args.optString("steps", "[]"))); "تم حفظ المهارة" }
         "run_skill" -> runSkill(args.optString("name"))
+        "call_phone" -> callPhone(args.optString("number"))
+        "compose_sms" -> composeSms(args.optString("number"), args.optString("text"))
         else -> "أداة غير معروفة"
         }
     }
+    private fun callPhone(number: String): String {
+        val value = number.trim()
+        if (!value.matches(Regex("[+0-9][0-9 ()-]{2,24}"))) return "رقم الهاتف غير صالح"
+        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(value))).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return runCatching { ctx.startActivity(intent); "فتحت شاشة الاتصال بالرقم $value؛ لم يتم الاتصال تلقائياً" }.getOrElse { "تعذر فتح شاشة الاتصال" }
+    }
+
+    private fun composeSms(number: String, text: String): String {
+        val value = number.trim()
+        if (!value.matches(Regex("[+0-9][0-9 ()-]{2,24}"))) return "رقم الهاتف غير صالح"
+        if (text.isBlank()) return "نص الرسالة فارغ"
+        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:" + Uri.encode(value))).apply {
+            putExtra("sms_body", text)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        return runCatching { ctx.startActivity(intent); "فتحت رسالة جاهزة للرقم $value؛ لم يتم الإرسال تلقائياً" }.getOrElse { "تعذر فتح تطبيق الرسائل" }
+    }
+
     private fun openApp(name: String): String {
         val pm = ctx.packageManager
         val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
