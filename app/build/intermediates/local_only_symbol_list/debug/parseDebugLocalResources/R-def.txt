@@ -1,6 +1,0 @@
-R_DEF: Internal format may change without notice
-local
-string acc_desc
-string app_name
-style Theme.Agent
-xml accessibility_service_config

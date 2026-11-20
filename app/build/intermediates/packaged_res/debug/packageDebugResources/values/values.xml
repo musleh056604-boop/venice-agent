@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="acc_desc">قراءة الشاشة وتنفيذ النقر والكتابة بعد موافقة المستخدم.</string>
-    <string name="app_name">Venice Agent</string>
-    <style name="Theme.Agent" parent="Theme.AppCompat.DayNight.NoActionBar"><item name="android:fontFamily">sans</item><item name="android:colorAccent">#38BDF8</item><item name="android:navigationBarColor">#0B0E14</item><item name="android:statusBarColor">#0B0E14</item></style>
-</resources>
