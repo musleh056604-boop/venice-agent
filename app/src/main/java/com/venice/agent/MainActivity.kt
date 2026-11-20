@@ -23,6 +23,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tools: AgentTools
     private val scope = MainScope()
     private var busy = false
+    private var activeJob: Job? = null
     private val maxSteps = 12
 
     override fun onCreate(state: Bundle?) { super.onCreate(state); prefs = Prefs(this); tools = AgentTools(this); Speech.init(this); buildUi() }
@@ -31,10 +32,14 @@ class MainActivity : AppCompatActivity() {
     private fun buildUi() {
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(24, 36, 24, 20); setBackgroundColor(Color.rgb(11,14,20)) }
         root.addView(TextView(this).apply { text = "Venice Agent\nوكيل عربي للتحكم بالجهاز"; textSize = 22f; setTextColor(Color.CYAN) })
+        root.addView(TextView(this).apply { text = "◉  صورة الوكيل\n   (أفاتار تجريبي — صوت عربي ar-SA)"; textSize = 18f; setTextColor(Color.WHITE); setPadding(0, 18, 0, 18) })
         val bar = LinearLayout(this)
         listOf("الإعدادات" to ::settings, "الصلاحيات" to ::permissions).forEach { pair ->
             bar.addView(Button(this).apply { text = pair.first; setOnClickListener { pair.second() } })
         }
+        bar.addView(Button(this).apply { text = "اختبار الصوت"; setOnClickListener { Speech.speak(this@MainActivity, "مرحباً، أنا فينيس") } })
+        val emergency = Button(this).apply { text = "إيقاف طوارئ"; setTextColor(Color.WHITE); setBackgroundColor(Color.rgb(170, 30, 30)); setOnClickListener { emergencyStop() } }
+        bar.addView(emergency)
         root.addView(bar)
         logView = TextView(this).apply { setTextColor(Color.WHITE); textSize = 15f }
         root.addView(ScrollView(this).apply { addView(logView) }, LinearLayout.LayoutParams(-1, 0, 1f))
@@ -55,12 +60,18 @@ class MainActivity : AppCompatActivity() {
     private fun executeGoal(goal: String) {
         if (prefs.apiKey.isBlank()) { log("أدخل مفتاح Gemini من الإعدادات"); return }
         busy = true; input.setText(""); log("👤 $goal")
-        scope.launch { try { val answer = agentLoop(goal); log("🤖 $answer"); if (prefs.autoSpeak) Speech.speak(this@MainActivity, answer) } catch (e: Exception) { log("خطأ: ${e.message ?: "غير معروف"}") } finally { busy = false } }
+        activeJob = scope.launch { try { val answer = agentLoop(goal); log("🤖 $answer"); if (prefs.autoSpeak && !EmergencyStop.active) Speech.speak(this@MainActivity, answer) } catch (e: Exception) { log("خطأ: ${e.message ?: "غير معروف"}") } finally { busy = false; activeJob = null } }
+    }
+    private fun emergencyStop() {
+        activeJob?.cancel(); activeJob = null; busy = false; EmergencyStop.stop(this); log("تم إيقاف الوكيل والطابور والصوت")
+        AlertDialog.Builder(this).setTitle("الوكيل متوقف").setMessage("لن تُنفّذ الأدوات حتى إعادة التفعيل.").setPositiveButton("إعادة تفعيل") { _, _ -> EmergencyStop.resume(); log("تمت إعادة تفعيل الوكيل") }.setNegativeButton("إبقاء الإيقاف", null).show()
     }
     private suspend fun agentLoop(goal: String): String = withContext(Dispatchers.IO) {
+        if (EmergencyStop.active) return@withContext "الوكيل متوقف بزر الطوارئ"
         val contents = JSONArray().put(JSONObject().put("role", "user").put("parts", JSONArray().put(JSONObject().put("text", "نفّذ الأمر بالعربية: $goal"))))
         var finalText = ""; var steps = 0
         while (steps++ < maxSteps) {
+            if (EmergencyStop.active) return@withContext "تم الإيقاف الطارئ"
             val screen = AgentAccessibilityService.instance?.readScreen() ?: "خدمة الوصول غير مفعلة"
             val prompt = "أنت وكيل هاتف. استخدم الأدوات لتنفيذ الأمر، ابدأ بقراءة الشاشة وتحقق بعد كل إجراء. الشاشة الحالية:\n$screen"
             val reply = callGemini(contents, prompt)

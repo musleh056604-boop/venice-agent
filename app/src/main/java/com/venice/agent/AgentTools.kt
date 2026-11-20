@@ -24,7 +24,9 @@ class AgentTools(private val ctx: Context) {
     }
     private fun fn(name: String, desc: String, props: JSONObject, vararg required: String) = JSONObject().put("name", name).put("description", desc).put("parameters", JSONObject().put("type", "OBJECT").put("properties", props).put("required", JSONArray(required)))
 
-    suspend fun execute(name: String, args: JSONObject): String = when (name) {
+    suspend fun execute(name: String, args: JSONObject): String {
+        if (EmergencyStop.active) return "تم إيقاف الوكيل بزر الطوارئ"
+        return when (name) {
         "read_screen" -> svc?.readScreen() ?: "خدمة الوصول غير مفعلة"
         "tap_text" -> svc?.tapText(args.optString("query")) ?: "خدمة الوصول غير مفعلة"
         "type_text" -> svc?.typeText(args.optString("text")) ?: "خدمة الوصول غير مفعلة"
@@ -34,6 +36,7 @@ class AgentTools(private val ctx: Context) {
         "save_skill" -> { memory.save(args.optString("name"), JSONArray(args.optString("steps", "[]"))); "تم حفظ المهارة" }
         "run_skill" -> runSkill(args.optString("name"))
         else -> "أداة غير معروفة"
+        }
     }
     private fun openApp(name: String): String {
         val pm = ctx.packageManager
