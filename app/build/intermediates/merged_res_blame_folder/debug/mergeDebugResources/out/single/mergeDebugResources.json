@@ -1,0 +1,6 @@
+[
+    {
+        "merged": "com.venice.agent.app-debug-26:/xml_accessibility_service_config.xml.flat",
+        "source": "com.venice.agent.app-main-28:/xml/accessibility_service_config.xml"
+    }
+]
